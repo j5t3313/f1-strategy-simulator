@@ -33,7 +33,7 @@ A comprehensive Formula 1 race strategy analysis tool that uses real F1 data and
 ## 🏎️ Quick Start 🏎️
 
 ### Online (Recommended)
-Visit the live app: 
+Visit the live app: https://f1-strategy-sim.streamlit.app
 
 ### Local Installation
 
