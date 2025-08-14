@@ -78,11 +78,10 @@ The app provides comprehensive analysis including:
 - Export options for further analysis
 
 ### System Requirements
-- Python 3.8+
-- 4GB+ RAM (for Bayesian MCMC modeling)
-- Internet connection (for F1 data download)
-- ~500MB disk space (for F1 data cache)
-
+- Streamlit
+ -NumPy, Pandas, Matplotlib
+- JAX, NumPyro (for Bayesian modeling)
+  
 ### Key Dependencies
 - **Streamlit**: Web application framework
 - **FastF1**: Official F1 data API for real race data
@@ -93,7 +92,7 @@ The app provides comprehensive analysis including:
 ## 🏎️ Technical Details 🏎️
 
 ### Data Sources
-- **Real F1 Data**: 2024 season race data via FastF1 API for tire performance modeling
+- **Real F1 Data**: 2024 season race data via FastF1 API used tire performance modeling
 - **Circuit Information**: Official lap counts, distances, and fuel consumption calculations
 - **Bayesian Tire Models**: MCMC models trained on fuel-corrected lap times vs. stint progression
 - **Compound-Specific Parameters**: Different degradation rates and performance characteristics per tire type
