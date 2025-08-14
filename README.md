@@ -50,7 +50,7 @@ Visit the live app: https://f1-strategy-sim.streamlit.app
    ```
 3. **Run the application**
    ```bash
-   streamlit run v3streamlitv4.py
+   streamlit run app.py
    ```
 
 ## 🏎️ How to Use 🏎️
