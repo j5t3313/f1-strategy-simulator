@@ -42,7 +42,7 @@ class F1StrategySimulator:
             ('Singapore', {'laps': 62, 'distance_km': 4.940, 'gp_name': 'Singapore Grand Prix'}),
             ('United States', {'laps': 56, 'distance_km': 5.513, 'gp_name': 'United States Grand Prix'}),
             ('Mexico', {'laps': 71, 'distance_km': 4.304, 'gp_name': 'Mexico City Grand Prix'}),
-            ('Brazil', {'laps': 71, 'distance_km': 4.309, 'gp_name': 'SÃ£o Paulo Grand Prix'}),
+            ('Brazil', {'laps': 71, 'distance_km': 4.309, 'gp_name': 'São Paulo Grand Prix'}),
             ('Las Vegas', {'laps': 50, 'distance_km': 6.201, 'gp_name': 'Las Vegas Grand Prix'}),
             ('Qatar', {'laps': 57, 'distance_km': 5.380, 'gp_name': 'Qatar Grand Prix'}),
             ('Abu Dhabi', {'laps': 58, 'distance_km': 5.281, 'gp_name': 'Abu Dhabi Grand Prix'})
@@ -340,218 +340,305 @@ def main():
     # Sidebar configuration
     st.sidebar.header("🏁 Race Configuration")
     
-    # Circuit selection - IN 2025 ORDER
-    circuit_names = [name for name, _ in sim.circuit_data]
-    circuit = st.sidebar.selectbox("Select Circuit", circuit_names)
+    # Circuit selection - WITH "Select Race" option
+    circuit_names = ["Select Race"] + [name for name, _ in sim.circuit_data]
+    circuit = st.sidebar.selectbox("Select Circuit", circuit_names, key="circuit_selector")
     
-    circuit_info = sim.circuits[circuit]
-    st.sidebar.info(f"""
-    **{circuit} Grand Prix**
-    - Laps: {circuit_info['laps']}
-    - Distance: {circuit_info['distance_km']:.3f} km/lap
-    - Fuel/Lap: {sim.calculate_fuel_consumption(circuit):.2f} kg
-    """)
+    # Check if a race is selected
+    race_selected = circuit != "Select Race"
     
-    # Data availability status
-    data_status_placeholder = st.sidebar.empty()
-    
-    # Strategy selection
-    selected_strategies = st.sidebar.multiselect(
-        "Select Strategies",
-        list(ALL_STRATEGIES.keys()),
-        default=list(ALL_STRATEGIES.keys())[:3]
-    )
-    
-    # Tire allocation
-    use_custom_tires = st.sidebar.checkbox("Custom Tire Allocation")
-    tire_allocation = None
-    
-    if use_custom_tires:
-        tire_allocation = []
-        for compound in ['SOFT', 'MEDIUM', 'HARD']:
-            num_sets = st.sidebar.number_input(f"{compound} sets", 0, 8, 2, key=f"{compound}_sets")
-            for i in range(num_sets):
-                age = st.sidebar.number_input(f"{compound} set {i+1} age", 0, 50, 0, key=f"{compound}_{i}")
-                tire_allocation.append({'compound': compound, 'age_laps': age})
-    
-    # circuit-specific base pace defaults
-    circuit_base_paces = {
-        'Australia': 82.0,
-        'China': 95.0,
-        'Japan': 92.0,
-        'Bahrain': 93.0,
-        'Saudi Arabia': 90.0,
-        'Miami': 91.0,
-        'Imola': 77.0,
-        'Monaco': 75.0,
-        'Spain': 78.0,
-        'Canada': 75.0,
-        'Austria': 67.0,
-        'Britain': 88.0,
-        'Hungary': 78.0,
-        'Belgium': 107.0,
-        'Netherlands': 72.0,
-        'Italy': 83.0,
-        'Azerbaijan': 102.0,
-        'Singapore': 95.0,
-        'United States': 96.0,
-        'Mexico': 78.0,
-        'Brazil': 72.0,
-        'Las Vegas': 85.0,
-        'Qatar': 84.0,
-        'Abu Dhabi': 87.0
-    }
-    
-    # circuit-specific pit loss defaults (based on pit lane length and speed limits)
-    circuit_pit_losses = {
-        'Australia': 21.5,
-        'China': 20.8,
-        'Japan': 20.2,
-        'Bahrain': 19.8,
-        'Saudi Arabia': 22.1,
-        'Miami': 18.5,
-        'Imola': 21.8,
-        'Monaco': 16.2,  
-        'Spain': 21.4,
-        'Canada': 15.8,  
-        'Austria': 18.9,
-        'Britain': 20.5,
-        'Hungary': 22.8,  
-        'Belgium': 23.2,  
-        'Netherlands': 20.1,
-        'Italy': 15.9,   
-        'Azerbaijan': 21.7,
-        'Singapore': 22.5,
-        'United States': 20.3,
-        'Mexico': 21.1,
-        'Brazil': 19.4,
-        'Las Vegas': 19.6,
-        'Qatar': 20.7,
-        'Abu Dhabi': 21.3
-    }
-    
-    # simulation parameters
-    default_pace = circuit_base_paces.get(circuit, 80.0)
-    base_pace = st.sidebar.slider(
-        "Base Pace (s)", 
-        60.0, 120.0, 
-        default_pace, 
-        0.1,
-        help=f"Typical lap time for {circuit}. Default: {default_pace}s"
-    )
-    
-    default_pit_loss = circuit_pit_losses.get(circuit, 22.0)
-    pit_loss = st.sidebar.slider(
-        "Pit Loss (s)", 
-        15.0, 35.0, 
-        default_pit_loss, 
-        0.1,
-        help=f"Time penalty for pit stop at {circuit}. Default: {default_pit_loss}s"
-    )
-    
-    num_sims = st.sidebar.slider("Simulations", 100, 2000, 1000, 100)
-    
-    # check data availability for selected circuit
-    with data_status_placeholder:
-        if sim.use_bayesian:
-            has_any_model = False
+    if race_selected:
+        circuit_info = sim.circuits[circuit]
+        st.sidebar.info(f"""
+        **{circuit} Grand Prix**
+        - Laps: {circuit_info['laps']}
+        - Distance: {circuit_info['distance_km']:.3f} km/lap
+        - Fuel/Lap: {sim.calculate_fuel_consumption(circuit):.2f} kg
+        """)
+        
+        # Data availability status
+        data_status_placeholder = st.sidebar.empty()
+        
+        # Strategy selection
+        selected_strategies = st.sidebar.multiselect(
+            "Select Strategies",
+            list(ALL_STRATEGIES.keys()),
+            default=[]
+        )
+        
+        # Tire allocation
+        use_custom_tires = st.sidebar.checkbox("Custom Tire Allocation")
+        tire_allocation = None
+        
+        if use_custom_tires:
+            tire_allocation = []
             for compound in ['SOFT', 'MEDIUM', 'HARD']:
-                model_key = f"{circuit}_{compound}"
-                if model_key in sim.bayesian_models:
-                    has_any_model = True
-                    break
-            
-            if has_any_model:
-                st.success("Bayesian tire model loaded.")
+                num_sets = st.sidebar.number_input(f"{compound} sets", 0, 8, 2, key=f"{compound}_sets")
+                for i in range(num_sets):
+                    age = st.sidebar.number_input(f"{compound} set {i+1} age", 0, 50, 0, key=f"{compound}_{i}")
+                    tire_allocation.append({'compound': compound, 'age_laps': age})
+        
+        # circuit-specific base pace defaults
+        circuit_base_paces = {
+            'Australia': 82.0,
+            'China': 95.0,
+            'Japan': 92.0,
+            'Bahrain': 93.0,
+            'Saudi Arabia': 90.0,
+            'Miami': 91.0,
+            'Imola': 77.0,
+            'Monaco': 75.0,
+            'Spain': 78.0,
+            'Canada': 75.0,
+            'Austria': 67.0,
+            'Britain': 88.0,
+            'Hungary': 78.0,
+            'Belgium': 107.0,
+            'Netherlands': 72.0,
+            'Italy': 83.0,
+            'Azerbaijan': 102.0,
+            'Singapore': 95.0,
+            'United States': 96.0,
+            'Mexico': 78.0,
+            'Brazil': 72.0,
+            'Las Vegas': 85.0,
+            'Qatar': 84.0,
+            'Abu Dhabi': 87.0
+        }
+        
+        # circuit-specific pit loss defaults (based on pit lane length and speed limits)
+        circuit_pit_losses = {
+            'Australia': 21.5,
+            'China': 20.8,
+            'Japan': 20.2,
+            'Bahrain': 19.8,
+            'Saudi Arabia': 22.1,
+            'Miami': 18.5,
+            'Imola': 21.8,
+            'Monaco': 16.2,  
+            'Spain': 21.4,
+            'Canada': 15.8,  
+            'Austria': 18.9,
+            'Britain': 20.5,
+            'Hungary': 22.8,  
+            'Belgium': 23.2,  
+            'Netherlands': 20.1,
+            'Italy': 15.9,   
+            'Azerbaijan': 21.7,
+            'Singapore': 22.5,
+            'United States': 20.3,
+            'Mexico': 21.1,
+            'Brazil': 19.4,
+            'Las Vegas': 19.6,
+            'Qatar': 20.7,
+            'Abu Dhabi': 21.3
+        }
+        
+        # simulation parameters
+        default_pace = circuit_base_paces.get(circuit, 80.0)
+        base_pace = st.sidebar.slider(
+            "Base Pace (s)", 
+            60.0, 120.0, 
+            default_pace, 
+            0.1,
+            help=f"Typical lap time for {circuit}. Default: {default_pace}s"
+        )
+        
+        default_pit_loss = circuit_pit_losses.get(circuit, 22.0)
+        pit_loss = st.sidebar.slider(
+            "Pit Loss (s)", 
+            15.0, 35.0, 
+            default_pit_loss, 
+            0.1,
+            help=f"Time penalty for pit stop at {circuit}. Default: {default_pit_loss}s"
+        )
+        
+        num_sims = st.sidebar.slider("Simulations", 100, 2000, 1000, 100)
+        
+        # check data availability for selected circuit
+        with data_status_placeholder:
+            if sim.use_bayesian:
+                has_any_model = False
+                for compound in ['SOFT', 'MEDIUM', 'HARD']:
+                    model_key = f"{circuit}_{compound}"
+                    if model_key in sim.bayesian_models:
+                        has_any_model = True
+                        break
+                
+                if has_any_model:
+                    st.success("Bayesian tire model loaded.")
+                else:
+                    st.warning("⚠️ Using basic physics model")
             else:
                 st.warning("⚠️ Using basic physics model")
-        else:
-            st.warning("⚠️ Using basic physics model")
     
-    # main content
-    if selected_strategies:
-        # adjust strategies for circuit
-        circuit_laps = circuit_info['laps']
-        adjusted_strategies = {}
+    # Main content area
+    if not race_selected:
+        # Show instructions when no race is selected
+        st.markdown("""
+        ## 🏁 Welcome to the F1 Strategy Simulator! 🏁
         
-        for strategy_name in selected_strategies:
-            strategy = ALL_STRATEGIES[strategy_name]
-            total_original_laps = sum(stint['laps'] for stint in strategy)
-            scale_factor = circuit_laps / total_original_laps
-            
-            adjusted_strategy = []
-            remaining_laps = circuit_laps
-            
-            for i, stint in enumerate(strategy):
-                if i == len(strategy) - 1:
-                    # last stint gets all remaining laps
-                    laps = remaining_laps
-                else:
-                    # scale intermediate stints proportionally
-                    scaled_laps = stint['laps'] * scale_factor
-                    # round to nearest integer but ensure minimum of 1 lap
-                    laps = max(1, round(scaled_laps))
-                    # don't exceed remaining laps
-                    laps = min(laps, remaining_laps - (len(strategy) - i - 1))
-                    remaining_laps -= laps
-                    
-                adjusted_strategy.append({'compound': stint['compound'], 'laps': laps})
-            
-            adjusted_strategies[strategy_name] = adjusted_strategy
+        This tool helps you analyze and compare different pit stop strategies for Formula 1 races using Bayesian tire modeling and Monte Carlo simulation.
         
-        # display strategies
-        st.subheader(f"🏁 Strategies for {circuit} ({circuit_laps} laps)")
-        for name, strategy in adjusted_strategies.items():
-            strategy_str = " → ".join([f"{stint['laps']}{stint['compound'][0]}" for stint in strategy])
-            st.info(f"**{name}:** {strategy_str}")
+        ### How to Use:
         
-        # run simulation
-        if st.button("🏁 Run Analysis", type="primary"):
-            with st.spinner("Running Monte Carlo simulations..."):
-                # create progress tracking
-                total_strategies = len(adjusted_strategies)
-                strategy_progress = st.progress(0)
-                current_strategy_text = st.empty()
-                
-                results = {}
-                
-                for i, (name, strategy) in enumerate(adjusted_strategies.items()):
-                    # update strategy progress
-                    current_strategy_text.text(f"Analyzing strategy {i+1}/{total_strategies}: {name}")
-                    strategy_progress.progress(i / total_strategies)
+        1. 📍 **Select a Circuit** 📍
                     
-                    try:
-                        times = sim.simulate_race_strategy(
-                            circuit, strategy, tire_allocation,
-                            base_pace, pit_loss, num_sims, None  # no individual progress bar
-                        )
-                        results[name] = times
-                    except ValueError as e:
-                        st.error(f"❌ {name}: {e}")
-                        continue
-                
-                # complete the progress
-                strategy_progress.progress(1.0)
-                current_strategy_text.text("✅ All strategies evaluated")
-                
-                if results:
-                    modeling_type = "Prebuilt Bayesian Models" if sim.use_bayesian else "Linear Deg"
-                    st.success(f"✅ Analysis complete using {modeling_type}.")
+           - Choose from the 2025 F1 calendar in the sidebar
+           - Each circuit has unique characteristics that affect strategy
+        
                     
-                    # store results
-                    st.session_state.results = results
-                    st.session_state.circuit = circuit
+        2. 📊 **Choose Strategies** 📊
+                    
+           - Pick one or more strategies to compare
+           - Options include 1-stop and 2-stop strategies with different tire compounds
+           - **S** = Soft, **M** = Medium, **H** = Hard tires
+                    
+        
+        3. ⚙️ **Adjust Parameters** ⚙️
+                    
+           - **Base Pace**: Typical lap time for the circuit (auto-selected per circuit, but adjustable as desired)
+           - **Pit Loss**: Time penalty for each pit stop (auto-selected per circuit, but adjustable as desired))
+           - **Simulations**: Number of Monte Carlo runs (more = more accurate, fewer = faster run time)
+                    
+        
+        4. 🏎️ **Optional: Custom Tire Allocation** 🏎️
+                    
+           - Set specific tire sets and their ages
+           - Useful for simulating practice session usage
+                    
+        
+        5. 🏁 **Run Analysis** 🏁
+                    
+           - Click "Run Analysis" to simulate thousands of race scenarios
+           - View performance distributions, risk analysis, and head-to-head comparisons
+                    
+        
+        ### Features:
+        - **Bayesian Tire Models**: Uses real F1 data when available
+        - **Fuel Correction**: Accounts for changing fuel loads
+        - **Monte Carlo Simulation**: Handles uncertainty and variability
+        - **Export Options**: Download results as CSV or PDF reports
+
+        #### Description:
+        The F1 Strategy Simulator employs a Bayesian-Monte Carlo framework for tire degradation modeling and race strategy simulation. The core tire models use MCMC inference with NUTS sampling to estimate posterior distributions for linear degradation parameters {α, β, σ} following μ = α + β × (stint_lap + tire_age), with samples drawn from posteriors during simulation. When Bayesian models are unavailable, the system falls back to deterministic physics-based models implementing linear degradation with compound-specific rates and exponential terms for extended stints beyond 20 laps.
+
+        Fuel correction applies the transformation Laptime(FC) = Laptime - (Total_Laps - Lap_Number) × Fuel_Consumption × Weight_Effect, where fuel consumption equals total fuel load divided by race laps. The Monte Carlo engine runs parameterized simulations sampling from tire model posteriors while adding Gaussian noise N(0, 0.2²) for lap-to-lap variability and N(0, 0.5²) for base pace variation between simulations.
+
+        The system incorporates tire allocation optimization with age penalties, compound-specific performance offsets, and circuit-dependent pit loss timing. Safety car effects are modeled through probability-based lap selection with time penalties applied to affected laps. The simulation accounts for traffic effects on extended first stints and reduced pit losses during safety car periods.
+
+        Output analysis generates empirical probability distributions from Monte Carlo samples, providing percentile-based risk metrics, median performance comparisons, and head-to-head win rate calculations for strategy evaluation under uncertainty.
+        
+        **Get started by selecting a circuit from the sidebar!** 👈
+        """)
+        
+    elif not selected_strategies:
+        # Show strategy selection instructions
+        st.subheader(f"🏁 {circuit} Grand Prix Selected")
+        
+        circuit_info = sim.circuits[circuit]
+        st.info(f"""
+        **Circuit Info:** {circuit_info['laps']} laps • {circuit_info['distance_km']:.3f} km per lap • {sim.calculate_fuel_consumption(circuit):.2f} kg fuel per lap
+        """)
+        
+        st.markdown("""
+        ### Next Steps:
+        
+        1. **Select Strategies** from the sidebar to compare
+        2. **Adjust simulation parameters** if needed
+        3. **Run the analysis** to see results
+        
+        #### Available Strategies:
+        - **1-stop strategies**: Fewer pit stops, longer stints
+        - **2-stop strategies**: More pit stops, fresher tires
+        - **Different compounds**: Soft (fastest, degrades quickly), Medium (balanced), Hard (slowest, most durable)
+        """)
+        
+    else:
+        # Show selected strategies and run analysis
+        if selected_strategies:
+            # adjust strategies for circuit
+            circuit_laps = circuit_info['laps']
+            adjusted_strategies = {}
+            
+            for strategy_name in selected_strategies:
+                strategy = ALL_STRATEGIES[strategy_name]
+                total_original_laps = sum(stint['laps'] for stint in strategy)
+                scale_factor = circuit_laps / total_original_laps
                 
-                # clean up progress indicators
-                strategy_progress.empty()
-                current_strategy_text.empty()
+                adjusted_strategy = []
+                remaining_laps = circuit_laps
+                
+                for i, stint in enumerate(strategy):
+                    if i == len(strategy) - 1:
+                        # last stint gets all remaining laps
+                        laps = remaining_laps
+                    else:
+                        # scale intermediate stints proportionally
+                        scaled_laps = stint['laps'] * scale_factor
+                        # round to nearest integer but ensure minimum of 1 lap
+                        laps = max(1, round(scaled_laps))
+                        # don't exceed remaining laps
+                        laps = min(laps, remaining_laps - (len(strategy) - i - 1))
+                        remaining_laps -= laps
+                        
+                    adjusted_strategy.append({'compound': stint['compound'], 'laps': laps})
+                
+                adjusted_strategies[strategy_name] = adjusted_strategy
+            
+            # display strategies
+            st.subheader(f"🏁 Strategies for {circuit} ({circuit_laps} laps)")
+            for name, strategy in adjusted_strategies.items():
+                strategy_str = " → ".join([f"{stint['laps']}{stint['compound'][0]}" for stint in strategy])
+                st.info(f"**{name}:** {strategy_str}")
+            
+            # run simulation
+            if st.button("🏁 Run Analysis", type="primary"):
+                with st.spinner("Running Monte Carlo simulations..."):
+                    # create progress tracking
+                    total_strategies = len(adjusted_strategies)
+                    strategy_progress = st.progress(0)
+                    current_strategy_text = st.empty()
+                    
+                    results = {}
+                    
+                    for i, (name, strategy) in enumerate(adjusted_strategies.items()):
+                        # update strategy progress
+                        current_strategy_text.text(f"Analyzing strategy {i+1}/{total_strategies}: {name}")
+                        strategy_progress.progress(i / total_strategies)
+                        
+                        try:
+                            times = sim.simulate_race_strategy(
+                                circuit, strategy, tire_allocation,
+                                base_pace, pit_loss, num_sims, None  # no individual progress bar
+                            )
+                            results[name] = times
+                        except ValueError as e:
+                            st.error(f"❌ {name}: {e}")
+                            continue
+                    
+                    # complete the progress
+                    strategy_progress.progress(1.0)
+                    current_strategy_text.text("✅ All strategies evaluated")
+                    
+                    if results:
+                        modeling_type = "Prebuilt Bayesian Models" if sim.use_bayesian else "Linear Deg"
+                        st.success(f"✅ Analysis complete using {modeling_type}.")
+                        
+                        # store results
+                        st.session_state.results = results
+                        st.session_state.circuit = circuit
+                    
+                    # clean up progress indicators
+                    strategy_progress.empty()
+                    current_strategy_text.empty()
     
     # display results
     if 'results' in st.session_state:
         results = st.session_state.results
         current_circuit = st.session_state.circuit
         
-        st.header("🏁 Analysis Results 🏁")
+        st.header("📊 Analysis Results 📊")
         
         # prepare summary data first
         summary_data = []
@@ -711,6 +798,16 @@ def main():
             st.metric("🏆 Fastest Strategy", best['Strategy'], f"{best['Median (s)']}s")
         with col2:
             st.metric("🎯 Most Consistent", most_consistent['Strategy'], f"±{most_consistent['Std Dev (s)']}s")
+        
+        # Reset button at the bottom
+        st.markdown("---")
+        if st.button("🔄 Reset Simulator", type="secondary", help="Clear all selections and return to the welcome screen"):
+            # Clear all session state
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            # Force circuit selector to reset to "Select Race"
+            st.session_state.circuit_selector = "Select Race"
+            st.rerun()
 
 if __name__ == "__main__":
     main()
