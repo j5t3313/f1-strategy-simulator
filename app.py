@@ -4,29 +4,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import warnings
 import os
+import pickle
+from pathlib import Path
 warnings.filterwarnings('ignore')
-
-# FastF1 import
-try:
-    import fastf1
-    FASTF1_AVAILABLE = True
-    cache_dir = '.f1_cache'
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    fastf1.Cache.enable_cache(cache_dir)
-except ImportError:
-    FASTF1_AVAILABLE = False
-
-# Bayesian modeling imports
-try:
-    import jax.numpy as jnp
-    import jax.random as random
-    import numpyro
-    import numpyro.distributions as dist
-    from numpyro.infer import MCMC, NUTS
-    BAYESIAN_AVAILABLE = True
-except ImportError:
-    BAYESIAN_AVAILABLE = False
 
 # set page config
 st.set_page_config(
@@ -37,7 +17,9 @@ st.set_page_config(
 )
 
 class F1StrategySimulator:
-    def __init__(self):
+    def __init__(self, models_dir="prebuilt_models"):
+        self.models_dir = Path(models_dir)
+        
         # 2025 F1 Calendar
         self.circuit_data = [
             ('Australia', {'laps': 58, 'distance_km': 5.278, 'gp_name': 'Australian Grand Prix'}),
@@ -60,7 +42,7 @@ class F1StrategySimulator:
             ('Singapore', {'laps': 62, 'distance_km': 4.940, 'gp_name': 'Singapore Grand Prix'}),
             ('United States', {'laps': 56, 'distance_km': 5.513, 'gp_name': 'United States Grand Prix'}),
             ('Mexico', {'laps': 71, 'distance_km': 4.304, 'gp_name': 'Mexico City Grand Prix'}),
-            ('Brazil', {'laps': 71, 'distance_km': 4.309, 'gp_name': 'São Paulo Grand Prix'}),
+            ('Brazil', {'laps': 71, 'distance_km': 4.309, 'gp_name': 'SÃ£o Paulo Grand Prix'}),
             ('Las Vegas', {'laps': 50, 'distance_km': 6.201, 'gp_name': 'Las Vegas Grand Prix'}),
             ('Qatar', {'laps': 57, 'distance_km': 5.380, 'gp_name': 'Qatar Grand Prix'}),
             ('Abu Dhabi', {'laps': 58, 'distance_km': 5.281, 'gp_name': 'Abu Dhabi Grand Prix'})
@@ -71,8 +53,29 @@ class F1StrategySimulator:
         
         self.bayesian_models = {}
         self.data_cache = {}
-        self.use_bayesian = BAYESIAN_AVAILABLE and FASTF1_AVAILABLE
+        self.use_bayesian = self._load_prebuilt_models()
     
+    def _load_prebuilt_models(self):
+        """Load prebuilt models if available"""
+        if not self.models_dir.exists():
+            return False
+            
+        for circuit_name, _ in self.circuit_data:
+            model_file = self.models_dir / f"{circuit_name.lower().replace(' ', '_')}_models.pkl"
+            if model_file.exists():
+                try:
+                    with open(model_file, 'rb') as f:
+                        circuit_data = pickle.load(f)
+                    
+                    for compound, model_data in circuit_data['models'].items():
+                        model_key = f"{circuit_name}_{compound}"
+                        self.bayesian_models[model_key] = model_data
+                        
+                except Exception as e:
+                    continue
+                    
+        return len(self.bayesian_models) > 0
+        
     def calculate_fuel_consumption(self, circuit):
         """Calculate fuel consumption per lap: 105kg / laps (110kg/laps with 5kg in reserve)"""
         laps = self.circuits[circuit]['laps']
@@ -87,97 +90,10 @@ class F1StrategySimulator:
     
     def load_real_f1_data(self, circuit_name):
         """Load race data for the selected circuit from 2024 season"""
-        if not FASTF1_AVAILABLE:
-            return None
+        return None
             
-        if circuit_name in self.data_cache:
-            return self.data_cache[circuit_name]
-            
-        circuit_info = self.circuits.get(circuit_name)
-        if not circuit_info:
-            return None
-            
-        try:
-            # load the specific GP's 2024 race data
-            session = fastf1.get_session(2024, circuit_info['gp_name'], 'R')
-            session.load()
-            
-            # process laps 
-            laps = session.laps
-            stints = laps[["Driver", "Stint", "Compound", "LapNumber", "LapTime"]].copy()
-            stints["LapTime_s"] = stints["LapTime"].dt.total_seconds()
-            stints.dropna(subset=["LapTime_s"], inplace=True)
-            stints["StintLap"] = stints.groupby(["Driver", "Stint"]).cumcount() + 1
-            
-            # filter valid data
-            stints = stints[
-                (stints["LapTime_s"] > 60) &
-                (stints["LapTime_s"] < 300) &
-                (stints["StintLap"] <= 50) &
-                (stints["Compound"].isin(['SOFT', 'MEDIUM', 'HARD']))
-            ]
-            
-            if len(stints) == 0:
-                return None
-            
-            # apply fuel correction
-            circuit_laps = circuit_info['laps']
-            fuel_per_lap = 105.0 / circuit_laps
-            weight_effect = 0.03
-            
-            stints['LapTime_FC'] = stints.apply(
-                lambda row: self.calculate_fuel_corrected_laptime(
-                    row['LapTime_s'], row['LapNumber'], circuit_laps, fuel_per_lap, weight_effect
-                ), axis=1
-            )
-            
-            # cache
-            self.data_cache[circuit_name] = stints
-            return stints
-            
-        except Exception as e:
-            st.error(f"Could not load 2024 data for {circuit_info['gp_name']}: {str(e)}")
-            return None
-    
     def build_bayesian_tire_model(self, compound, circuit_name):
         """Build Bayesian tire model using 2024 race F1 data"""
-        if not self.use_bayesian:
-            return None
-            
-        model_key = f"{circuit_name}_{compound}"
-        if model_key in self.bayesian_models:
-            return self.bayesian_models[model_key]
-        
-        real_data = self.load_real_f1_data(circuit_name)
-        
-        if real_data is not None:
-            compound_data = real_data[real_data['Compound'] == compound]
-            
-            if len(compound_data) > 15:  
-                x_data = jnp.array(compound_data['StintLap'].values, dtype=jnp.float32)
-                y_data = jnp.array(compound_data['LapTime_FC'].values, dtype=jnp.float32)
-                
-                def model(x, y=None):
-                    alpha = numpyro.sample("alpha", dist.Normal(80, 5))
-                    beta = numpyro.sample("beta", dist.Normal(0.03, 0.02))
-                    sigma = numpyro.sample("sigma", dist.HalfNormal(0.5))
-                    mu = alpha + beta * x
-                    numpyro.sample("obs", dist.Normal(mu, sigma), obs=y)
-
-                kernel = NUTS(model)
-                mcmc = MCMC(kernel, num_warmup=500, num_samples=1000, progress_bar=False)
-                mcmc.run(random.PRNGKey(0), x_data, y_data)
-                
-                self.bayesian_models[model_key] = {
-                    'mcmc': mcmc,
-                    'samples': mcmc.get_samples(),
-                    'n_observations': len(compound_data),
-                    'circuit': circuit_name,
-                    'compound': compound
-                }
-                
-                return self.bayesian_models[model_key]
-        
         return None
     
     def calculate_tire_performance(self, compound, stint_lap, tire_age, base_laptime, circuit_name):
@@ -186,9 +102,6 @@ class F1StrategySimulator:
         # try Bayesian model first
         if self.use_bayesian:
             model_key = f"{circuit_name}_{compound}"
-            
-            if model_key not in self.bayesian_models:
-                self.build_bayesian_tire_model(compound, circuit_name)
             
             if model_key in self.bayesian_models:
                 model_data = self.bayesian_models[model_key]
@@ -539,31 +452,21 @@ def main():
     num_sims = st.sidebar.slider("Simulations", 100, 2000, 1000, 100)
     
     # check data availability for selected circuit
-    if FASTF1_AVAILABLE and BAYESIAN_AVAILABLE:
-        with data_status_placeholder:
-            with st.spinner(f"Loading data for {circuit} and building tire models..."):
-                real_data = sim.load_real_f1_data(circuit)
-                if real_data is not None:
-                    st.success("✅ 2024 race data available")
-                    
-                    # show compound data availability
-                    compound_counts = real_data['Compound'].value_counts()
-                    st.write("**Tire data:**")
-                    for compound in ['SOFT', 'MEDIUM', 'HARD']:
-                        count = compound_counts.get(compound, 0)
-                        if count > 15:
-                            st.write(f"• {compound}: {count} laps ✅")
-                        elif count > 0:
-                            st.write(f"• {compound}: {count} laps ⚠️")
-                        else:
-                            st.write(f"• {compound}: No data ❌")
-                else:
-                    st.warning("⚠️ No 2024 data available")
-                    st.info("Using basic physics model")
-    elif FASTF1_AVAILABLE:
-        data_status_placeholder.info("🏁 Real F1 data (basic modeling)")
-    else:
-        data_status_placeholder.warning("⚠️ Install FastF1 for real data")
+    with data_status_placeholder:
+        if sim.use_bayesian:
+            has_any_model = False
+            for compound in ['SOFT', 'MEDIUM', 'HARD']:
+                model_key = f"{circuit}_{compound}"
+                if model_key in sim.bayesian_models:
+                    has_any_model = True
+                    break
+            
+            if has_any_model:
+                st.success("Bayesian tire model loaded.")
+            else:
+                st.warning("⚠️ Using basic physics model")
+        else:
+            st.warning("⚠️ Using basic physics model")
     
     # main content
     if selected_strategies:
@@ -632,8 +535,8 @@ def main():
                 current_strategy_text.text("✅ All strategies evaluated")
                 
                 if results:
-                    modeling_type = "Bayesian + Real Data" if sim.use_bayesian else "Linear Deg"
-                    st.success(f"✅ Analysis complete using {modeling_type} modeling.")
+                    modeling_type = "Prebuilt Bayesian Models" if sim.use_bayesian else "Linear Deg"
+                    st.success(f"✅ Analysis complete using {modeling_type}.")
                     
                     # store results
                     st.session_state.results = results
@@ -765,7 +668,7 @@ def main():
         st.dataframe(df, use_container_width=True)
         
         # risk analysis
-        st.subheader("🏁 Risk Analysis")
+        st.subheader("🎯 Risk Analysis")
         best_median = df["Median (s)"].min()
         
         risk_data = []
@@ -805,9 +708,9 @@ def main():
         
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("🏁 Fastest Strategy", best['Strategy'], f"{best['Median (s)']}s")
+            st.metric("🏆 Fastest Strategy", best['Strategy'], f"{best['Median (s)']}s")
         with col2:
-            st.metric("🏁 Most Consistent", most_consistent['Strategy'], f"±{most_consistent['Std Dev (s)']}s")
+            st.metric("🎯 Most Consistent", most_consistent['Strategy'], f"±{most_consistent['Std Dev (s)']}s")
 
 if __name__ == "__main__":
     main()
