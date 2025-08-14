@@ -52,8 +52,8 @@ class F1StrategySimulator:
             ('Canada', {'laps': 70, 'distance_km': 4.361, 'gp_name': 'Canadian Grand Prix'}),
             ('Austria', {'laps': 71, 'distance_km': 4.318, 'gp_name': 'Austrian Grand Prix'}),
             ('Britain', {'laps': 52, 'distance_km': 5.891, 'gp_name': 'British Grand Prix'}),
-            ('Hungary', {'laps': 70, 'distance_km': 4.381, 'gp_name': 'Hungarian Grand Prix'}),
             ('Belgium', {'laps': 44, 'distance_km': 7.004, 'gp_name': 'Belgian Grand Prix'}),
+            ('Hungary', {'laps': 70, 'distance_km': 4.381, 'gp_name': 'Hungarian Grand Prix'}),
             ('Netherlands', {'laps': 72, 'distance_km': 4.259, 'gp_name': 'Dutch Grand Prix'}),
             ('Italy', {'laps': 53, 'distance_km': 5.793, 'gp_name': 'Italian Grand Prix'}),
             ('Azerbaijan', {'laps': 51, 'distance_km': 6.003, 'gp_name': 'Azerbaijan Grand Prix'}),
@@ -277,7 +277,7 @@ class F1StrategySimulator:
                     'tire_age': tire_set['age_laps']
                 })
             else:
-                raise ValueError(f"No more {compound} tire sets available!")
+                raise ValueError(f"No more {compound} tire sets available.")
                 
         return enhanced_strategy
 
@@ -541,7 +541,7 @@ def main():
     # check data availability for selected circuit
     if FASTF1_AVAILABLE and BAYESIAN_AVAILABLE:
         with data_status_placeholder:
-            with st.spinner(f"Checking data for {circuit}..."):
+            with st.spinner(f"Loading data for {circuit} and building tire models..."):
                 real_data = sim.load_real_f1_data(circuit)
                 if real_data is not None:
                     st.success("✅ 2024 race data available")
@@ -632,8 +632,8 @@ def main():
                 current_strategy_text.text("✅ All strategies evaluated")
                 
                 if results:
-                    modeling_type = "Bayesian + Real Data" if sim.use_bayesian else "Basic Physics"
-                    st.success(f"✅ Analysis complete using {modeling_type} modeling!")
+                    modeling_type = "Bayesian + Real Data" if sim.use_bayesian else "Linear Deg"
+                    st.success(f"✅ Analysis complete using {modeling_type} modeling.")
                     
                     # store results
                     st.session_state.results = results
