@@ -45,17 +45,13 @@ Visit the live app: https://f1-strategy-sim.streamlit.app
 
 2. **Install dependencies**
  
-streamlit>=1.28.0
-numpy>=1.24.0
-pandas>=2.0.0
-matplotlib>=3.7.0
-fastf1>=3.1.0
-jax>=0.4.13
-jaxlib>=0.4.13
-numpyro>=0.12.0
-seaborn>=0.12.0
-scipy>=1.10.0
-tqdm>=4.65.0
+```bash
+   pip install -r requirements.txt
+   ```
+3. **Run the application**
+   ```bash
+   streamlit run v3streamlitv4.py
+   ```
 
 ## 🏎️ How to Use 🏎️
 
@@ -144,7 +140,7 @@ This simulator is for educational and research purposes only. Actual F1 race str
 
 Results should not be used for actual racing decisions, betting, or gambling purposes. You will absolutely regret it.
 
-## 🙋‍♂🏎️ Support
+## 🏎️ Support
 
 For questions, issues, or feature requests, email me:
 jessica.5t3313@gmail.com
