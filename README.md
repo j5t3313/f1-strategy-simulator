@@ -108,15 +108,11 @@ The app provides comprehensive analysis including:
 ### Cache Management
 The app automatically creates and manages a `.f1_cache` directory for F1 data caching, improving performance on subsequent runs.
 
-## Contributing
+## FAQs
 
-Contributions are welcome! Areas for improvement:
-- **Enhanced Bayesian models**: Non-linear tire degradation, temperature effects
-- **Weather modeling**: Rain probability and wet tire strategies  
-- **Safety car simulation**: Historical probability models by circuit
-- **Traffic modeling**: Overtaking probability and DRS effects
-- **Driver variability**: Performance differences and error modeling
-- **Real-time data**: Live timing integration for race weekend use
+### Why didn't you...
+- **Include wet and intermediate tires?**: Because wet weather tire strategies are entirely dependent on, well, the weather and are, by their nature, reactive. This isn't the purpose of this project.
+- **Factor in dirty air?**: This is a clean air simulation intended to determine which stategy, all other factors being equal, is the most likely to get the driver from the start of the race to the end the fastest. 
 
 ## 📄 License
 
