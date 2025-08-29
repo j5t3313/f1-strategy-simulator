@@ -9,7 +9,7 @@ A comprehensive Formula 1 race strategy analysis tool that uses real F1 data and
 - **Fuel-Corrected Lap Times**: Accounts for changing fuel loads throughout the race
 - **Monte Carlo Simulations**: Runs thousands of simulations for robust statistical analysis
 - **Compound-Specific Degradation**: Different tire performance models for SOFT, MEDIUM, and HARD compounds
-- **NEW: the Custom Strategy Editor allows you to edit stint lengths per compound in each strategy **
+- **NEW: the Custom Strategy Editor allows you to edit stint lengths per compound in each strategy**
 
 ### 🏁 Circuit Coverage
 - **All 24 F1 Circuits**: Complete 2025 calendar support
