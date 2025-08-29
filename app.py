@@ -596,6 +596,8 @@ def main():
         - **Monte Carlo Simulation**: Handles uncertainty and variability
         - **Export Options**: Download results as CSV or PDF reports
 
+        ### Looking for more technical parameter customization? Check out f1-strategy-sim-pro.streamlit.app
+
         #### Description:
         The F1 Strategy Simulator employs a Bayesian-Monte Carlo framework for tire degradation modeling and race strategy simulation. The core tire models use MCMC inference with NUTS sampling to estimate posterior distributions for linear degradation parameters {α, β, σ} following μ = α + β × (stint_lap + tire_age), with samples drawn from posteriors during simulation. When Bayesian models are unavailable, the system falls back to deterministic physics-based models implementing linear degradation with compound-specific rates and exponential terms for extended stints beyond 20 laps.
 
@@ -893,4 +895,5 @@ def main():
             st.rerun()
 
 if __name__ == "__main__":
+
     main()
