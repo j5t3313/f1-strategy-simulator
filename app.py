@@ -246,8 +246,7 @@ class F1StrategySimulator:
             results.append(race_time)
             
         return np.array(results)
-
-# predefined strategies
+    # predefined strategies
 ALL_STRATEGIES = {
     "1-stop (M-H)": [{"compound": "MEDIUM", "laps": 20}, {"compound": "HARD", "laps": 24}],
     "1-stop (S-H)": [{"compound": "SOFT", "laps": 15}, {"compound": "HARD", "laps": 29}],
@@ -259,6 +258,84 @@ ALL_STRATEGIES = {
     "1-stop (H-S)": [{"compound": "HARD", "laps": 31}, {"compound": "SOFT", "laps": 13}],
     "2-stop (M-H-M)": [{"compound": "MEDIUM", "laps": 12}, {"compound": "HARD", "laps": 18}, {"compound": "MEDIUM", "laps": 14}]
 }
+
+def render_custom_strategy_editor(sim, circuit, selected_strategies):
+    """Render custom strategy editor with lap customization"""
+    
+    st.header("Custom Strategy Configuration")
+    
+    use_custom_strategies = st.checkbox("Enable Custom Strategy Editor")
+    
+    if use_custom_strategies:
+        if 'custom_strategies' not in st.session_state:
+            st.session_state.custom_strategies = {}
+        
+        circuit_laps = sim.circuits[circuit]['laps']
+        
+        for strategy_name in selected_strategies:
+            st.subheader(f"Edit {strategy_name}")
+            
+            # Initialize custom strategy if not exists with circuit-scaled values
+            if strategy_name not in st.session_state.custom_strategies:
+                base_strategy = ALL_STRATEGIES[strategy_name]
+                
+                # Apply circuit scaling to base strategy
+                total_original_laps = sum(stint['laps'] for stint in base_strategy)
+                scale_factor = circuit_laps / total_original_laps
+                
+                scaled_strategy = []
+                remaining_laps = circuit_laps
+                
+                for i, stint in enumerate(base_strategy):
+                    if i == len(base_strategy) - 1:
+                        laps = remaining_laps
+                    else:
+                        scaled_laps = stint['laps'] * scale_factor
+                        laps = max(1, round(scaled_laps))
+                        laps = min(laps, remaining_laps - (len(base_strategy) - i - 1))
+                        remaining_laps -= laps
+                    
+                    scaled_strategy.append({'compound': stint['compound'], 'laps': laps})
+                
+                st.session_state.custom_strategies[strategy_name] = scaled_strategy
+            
+            custom_strategy = st.session_state.custom_strategies[strategy_name]
+            
+            cols = st.columns(len(custom_strategy))
+            
+            for i, (col, stint) in enumerate(zip(cols, custom_strategy)):
+                with col:
+                    st.write(f"**Stint {i+1}**")
+                    
+                    # Compound selector
+                    compound = st.selectbox(
+                        "Compound",
+                        ["SOFT", "MEDIUM", "HARD"],
+                        index=["SOFT", "MEDIUM", "HARD"].index(stint['compound']),
+                        key=f"{strategy_name}_stint_{i}_compound"
+                    )
+                    
+                    # Lap count selector
+                    laps = st.number_input(
+                        "Laps",
+                        min_value=1,
+                        max_value=circuit_laps,
+                        value=stint['laps'],
+                        key=f"{strategy_name}_stint_{i}_laps"
+                    )
+                    
+                    # Update the custom strategy
+                    custom_strategy[i] = {'compound': compound, 'laps': laps}
+            
+            # Show total laps
+            total_laps = sum(stint['laps'] for stint in custom_strategy)
+            
+            if total_laps != circuit_laps:
+                st.warning(f"Total laps: {total_laps} (Circuit has {circuit_laps} laps)")
+            else:
+                st.success(f"Total laps: {total_laps} ✓")
+    
+    return use_custom_strategies
 
 def create_performance_plot(results, circuit):
     """Create performance visualization"""
@@ -327,7 +404,6 @@ def create_performance_plot(results, circuit):
     
     plt.tight_layout()
     return fig
-
 def main():
     st.title("🏎️ F1 Strategy Simulator 2025 🏎️")
     
@@ -422,7 +498,7 @@ def main():
             'Britain': 20.5,
             'Hungary': 22.8,  
             'Belgium': 23.2,  
-            'Netherlands': 20.1,
+            'Netherlands': 16.5, # up from 20.5 - new pitlane speed limit for 2025
             'Italy': 15.9,   
             'Azerbaijan': 21.7,
             'Singapore': 22.5,
@@ -471,8 +547,7 @@ def main():
                     st.warning("⚠️ Using basic physics model")
             else:
                 st.warning("⚠️ Using basic physics model")
-    
-    # Main content area
+                # Main content area
     if not race_selected:
         # Show instructions when no race is selected
         st.markdown("""
@@ -482,7 +557,7 @@ def main():
         
         ### How to Use:
         
-        1. 📍 **Select a Circuit** 📍
+        1. 🏁 **Select a Circuit** 🏁
                     
            - Choose from the 2025 F1 calendar in the sidebar
            - Each circuit has unique characteristics that affect strategy
@@ -493,6 +568,7 @@ def main():
            - Pick one or more strategies to compare
            - Options include 1-stop and 2-stop strategies with different tire compounds
            - **S** = Soft, **M** = Medium, **H** = Hard tires
+           - **NEW: Use the Custom Strategy Editor to customize stint lengths per compound in each strategy**
                     
         
         3. ⚙️ **Adjust Parameters** ⚙️
@@ -508,7 +584,7 @@ def main():
            - Useful for simulating practice session usage
                     
         
-        5. 🏁 **Run Analysis** 🏁
+        5. 🏃 **Run Analysis** 🏃
                     
            - Click "Run Analysis" to simulate thousands of race scenarios
            - View performance distributions, risk analysis, and head-to-head comparisons
@@ -552,48 +628,56 @@ def main():
         - **1-stop strategies**: Fewer pit stops, longer stints
         - **2-stop strategies**: More pit stops, fresher tires
         - **Different compounds**: Soft (fastest, degrades quickly), Medium (balanced), Hard (slowest, most durable)
+        - **NEW: Use the Custom Strategy Editor to adjust stint lengths per compound in each strategy.**
         """)
         
     else:
-        # Show selected strategies and run analysis
+        # Show selected strategies and custom editor
         if selected_strategies:
-            # adjust strategies for circuit
-            circuit_laps = circuit_info['laps']
-            adjusted_strategies = {}
+            # Check if custom strategy editor is enabled and render it
+            use_custom_strategies = render_custom_strategy_editor(sim, circuit, selected_strategies)
             
-            for strategy_name in selected_strategies:
-                strategy = ALL_STRATEGIES[strategy_name]
-                total_original_laps = sum(stint['laps'] for stint in strategy)
-                scale_factor = circuit_laps / total_original_laps
+            # Use custom strategies if available, otherwise use default scaling
+            if use_custom_strategies and 'custom_strategies' in st.session_state:
+                adjusted_strategies = st.session_state.custom_strategies
+            else:
+                # adjust strategies for circuit (existing logic)
+                circuit_laps = circuit_info['laps']
+                adjusted_strategies = {}
                 
-                adjusted_strategy = []
-                remaining_laps = circuit_laps
-                
-                for i, stint in enumerate(strategy):
-                    if i == len(strategy) - 1:
-                        # last stint gets all remaining laps
-                        laps = remaining_laps
-                    else:
-                        # scale intermediate stints proportionally
-                        scaled_laps = stint['laps'] * scale_factor
-                        # round to nearest integer but ensure minimum of 1 lap
-                        laps = max(1, round(scaled_laps))
-                        # don't exceed remaining laps
-                        laps = min(laps, remaining_laps - (len(strategy) - i - 1))
-                        remaining_laps -= laps
-                        
-                    adjusted_strategy.append({'compound': stint['compound'], 'laps': laps})
-                
-                adjusted_strategies[strategy_name] = adjusted_strategy
+                for strategy_name in selected_strategies:
+                    strategy = ALL_STRATEGIES[strategy_name]
+                    total_original_laps = sum(stint['laps'] for stint in strategy)
+                    scale_factor = circuit_laps / total_original_laps
+                    
+                    adjusted_strategy = []
+                    remaining_laps = circuit_laps
+                    
+                    for i, stint in enumerate(strategy):
+                        if i == len(strategy) - 1:
+                            # last stint gets all remaining laps
+                            laps = remaining_laps
+                        else:
+                            # scale intermediate stints proportionally
+                            scaled_laps = stint['laps'] * scale_factor
+                            # round to nearest integer but ensure minimum of 1 lap
+                            laps = max(1, round(scaled_laps))
+                            # don't exceed remaining laps
+                            laps = min(laps, remaining_laps - (len(strategy) - i - 1))
+                            remaining_laps -= laps
+                            
+                        adjusted_strategy.append({'compound': stint['compound'], 'laps': laps})
+                    
+                    adjusted_strategies[strategy_name] = adjusted_strategy
             
             # display strategies
-            st.subheader(f"🏁 Strategies for {circuit} ({circuit_laps} laps)")
+            st.subheader(f"🏁 Strategies for {circuit} ({circuit_info['laps']} laps)")
             for name, strategy in adjusted_strategies.items():
                 strategy_str = " → ".join([f"{stint['laps']}{stint['compound'][0]}" for stint in strategy])
                 st.info(f"**{name}:** {strategy_str}")
             
             # run simulation
-            if st.button("🏁 Run Analysis", type="primary"):
+            if st.button("🏃 Run Analysis", type="primary"):
                 with st.spinner("Running Monte Carlo simulations..."):
                     # create progress tracking
                     total_strategies = len(adjusted_strategies)
@@ -632,8 +716,7 @@ def main():
                     # clean up progress indicators
                     strategy_progress.empty()
                     current_strategy_text.empty()
-    
-    # display results
+                    # display results
     if 'results' in st.session_state:
         results = st.session_state.results
         current_circuit = st.session_state.circuit
