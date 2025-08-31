@@ -256,7 +256,9 @@ ALL_STRATEGIES = {
     "2-stop (H-M-S)": [{"compound": "HARD", "laps": 16}, {"compound": "MEDIUM", "laps": 16}, {"compound": "SOFT", "laps": 12}],
     "1-stop (H-M)": [{"compound": "HARD", "laps": 25}, {"compound": "MEDIUM", "laps": 19}],
     "1-stop (H-S)": [{"compound": "HARD", "laps": 31}, {"compound": "SOFT", "laps": 13}],
-    "2-stop (M-H-M)": [{"compound": "MEDIUM", "laps": 12}, {"compound": "HARD", "laps": 18}, {"compound": "MEDIUM", "laps": 14}]
+    "2-stop (M-H-M)": [{"compound": "MEDIUM", "laps": 12}, {"compound": "HARD", "laps": 18}, {"compound": "MEDIUM", "laps": 14}],
+    "2-stop (M-H-H)": [{"compound": "MEDIUM", "laps": 18}, {"compound": "HARD", "laps": 30}, {"compound": "HARD", "laps": 24}],
+    "2-stop (S-H-M)": [{"compound": "SOFT", "laps": 15}, {"compound": "HARD", "laps": 35}, {"compound": "MEDIUM", "laps": 22}]
 }
 
 def render_custom_strategy_editor(sim, circuit, selected_strategies):
@@ -898,4 +900,5 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
