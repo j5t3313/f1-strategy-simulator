@@ -501,7 +501,7 @@ def main():
             'Hungary': 22.8,  
             'Belgium': 23.2,  
             'Netherlands': 16.5, # up from 20.5 - new pitlane speed limit for 2025
-            'Italy': 15.9,   
+            'Italy': 23.7,   
             'Azerbaijan': 21.7,
             'Singapore': 22.5,
             'United States': 20.3,
@@ -900,5 +900,6 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
